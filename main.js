@@ -4,6 +4,16 @@ console.log("wtf is this");
 var SCREEN_WIDTH = 640;
 var SCREEN_HEIGHT = 480;
 
+var frame = 0.0;
+var frameCount = 30;
+
+var shaderProgram;
+var canvas;
+var gl;
+
+
+
+
 // multiply all points in a list by a matrix
 function transform(input, transformation) {
   var output = [];
@@ -30,18 +40,8 @@ function toFlatArray(input) {
   return output;
 }
 
-// divide all points by their w coordinate
-function normalize(input) {
-  var output = [];
-  if (input.length < 1) return output;
 
-  var last = input[0];
-  for(point of input) {
-    output.push(vec4.normalize(vec4.create(), point));
-  }
 
-  return output;
-}
 
 // create a matrix for a camera transform
 function camera() {
@@ -65,7 +65,7 @@ function viewport() {
   return out;
 }
 
-// create a matrix for a moving a box
+// create a matrix for a model transform
 function moveBox(x, y, z, scale) {
   var transform = mat4.create();
   mat4.identity(transform)
@@ -74,18 +74,8 @@ function moveBox(x, y, z, scale) {
   return transform;
 }
 
-// treat the list of points as a line strip and create an image
-function drawLines(points) {
-  if (points.size() < 1) return;
 
-  var first = points.at(0);
-  for(second in points) {
-    if (first != second) {
-      draw(first.x, first.y, second.x, second.y);
-      first = second;
-    }
-  }
-}
+
 
 // a list of points that describes a cube centered around 0,0,0 as a line strip
 function cubeVertices(size) {
@@ -111,103 +101,29 @@ function cubeVertices(size) {
   ];
 }
 
-// this is the 3D pipeline
 function generateBoxLines(modelTransform) {
-  // generate a list of points in model space
   var points = cubeVertices(10);
 
-  // transform them into world space with a model transform
   var worldPoints = transform(points, modelTransform);
-
-  // transform them into camera space with a camera transform
   var cameraPoints = transform(worldPoints, camera());
-
-  // transform them into the viewing frustum (perspective space)
-  // with a perspective transform
   var perspectivePoints = transform(cameraPoints, perspective());
-
-  // normalize them by dividing by w
-  var normalizedPerspectivePoints = normalize(perspectivePoints);
-
-  // transform them into screen space points with a viewport transform
-  var viewportPoints = transform(normalizedPerspectivePoints, viewport());
-
-  return viewportPoints;
+  
+  return perspectivePoints;
 }
 
-// int main(int argc ,char *argv[]) {
-//   try {
-//     InitializeMagick(*argv);
 
-//     vector<Magick::Image> animationFrames;
 
-//     int frameCount = 60;
-//     for (int i = 0; i < frameCount; i++) {
-//       Image frame(Geometry(SCREEN_WIDTH, SCREEN_HEIGHT), Color("black"));
-//       frame.strokeWidth(1);
-//       frame.animationDelay(5);
-
-//       // create and draw a stationary red box
-//       frame.strokeColor("red");
-//       drawLines(frame, generateBoxLines(moveBox(0, 5, 0, 1)));
-
-//       // create and draw a larger green box sliding along the x axis
-//       frame.strokeColor("green");
-//       auto greenBoxX = 3.f * (abs(i - frameCount / 2) - frameCount/4);
-//       drawLines(frame, generateBoxLines(moveBox(greenBoxX, 10, -30, 2)));
-
-//       // create and draw a larger blue box sliding along the z axis
-//       frame.strokeColor("blue");
-//       auto blueBoxX = 3.f * (abs(i - frameCount / 2) - frameCount/4);
-//       drawLines(frame, generateBoxLines(moveBox(30, 10, blueBoxX, 2)));
-
-//       animationFrames.push_back(frame);
-//     }
-
-//     Magick::writeImages(animationFrames.begin(), animationFrames.end(), "out.gif");
-//     return 0;
-//   } catch( exception & error_ ) {
-//     cout << "Caught exception: " << error_.what() << endl;
-//     return 1;
-//   }
-// }
-
-function ready(fn) {
-  if (document.readyState != 'loading'){
-    fn();
-  } else if (document.addEventListener) {
-    document.addEventListener('DOMContentLoaded', fn);
-  } else {
-    document.attachEvent('onreadystatechange', function() {
-      if (document.readyState != 'loading')
-        fn();
-    });
-  }
-}
-
-var frame = 0.0;
-var frameCount = 60;
-var shaderProgram;
-var vertex_buffer;
-var canvas;
-var gl;
 
 function draw(vertices, color) {
-  var vpt = mat4.create();
-  var vpt = mat4.scale(vpt, vpt, vec3.fromValues(1/320.0, -1/240.0, 0.0));
-  mat4.translate(vpt, vpt, vec3.fromValues(-320.0, -240.0, 0.0));
-  vertices = transform(vertices, vpt);
-
   vertices = toFlatArray(vertices);
 
-  vertex_buffer = gl.createBuffer();
+  var vertex_buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
   gl.useProgram(shaderProgram);
 
-  /*======= Associating shaders to buffer objects ======*/
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
   var coord = gl.getAttribLocation(shaderProgram, "coordinates");
   gl.vertexAttribPointer(coord, 4, gl.FLOAT, false, 0, 0);
@@ -216,9 +132,31 @@ function draw(vertices, color) {
   var colorLoc = gl.getUniformLocation(shaderProgram, "color");
   gl.uniform3f(colorLoc, color[0], color[1], color[2]);
 
-  /*============ Drawing the triangle =============*/
   gl.drawArrays(gl.LINE_STRIP, 0, vertices.length/4);
 }
+
+function drawCallback() {
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
+  gl.enable(gl.DEPTH_TEST);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.viewport(0,0,canvas.width,canvas.height);
+
+  draw(generateBoxLines(moveBox(0, 5, 0, 1)), [1.0, 0.0, 0.0]);
+
+  var greenBoxX = 3.0 * (Math.abs(frame - frameCount) - frameCount/2.0);
+  draw(generateBoxLines(moveBox(greenBoxX, 10, -30, 2)), [0.0, 1.0, 0.0]);
+
+  var blueBoxX = 3.0 * (Math.abs(frame - frameCount) - frameCount/2.0);
+  draw(generateBoxLines(moveBox(30, 10, blueBoxX, 2)), [0.0, 0.0, 1.0]);
+
+  window.requestAnimationFrame(drawCallback);
+
+  frame+=0.5;
+  if (frame >= frameCount*2) frame = 0;
+}
+
+
+
 
 function setupGLStuff() {
   canvas = document.getElementById('my_Canvas');
@@ -229,7 +167,7 @@ function setupGLStuff() {
     'attribute vec4 coordinates;' +
     'uniform vec3 color;' +
     'void main(void) {' +
-       ' gl_Position = coordinates;' +
+    ' gl_Position = coordinates;' +
     '}';
   var vertShader = gl.createShader(gl.VERTEX_SHADER);
   gl.shaderSource(vertShader, vertCode);
@@ -239,7 +177,7 @@ function setupGLStuff() {
     'precision mediump float;' +
     'uniform vec3 color;' +
     'void main(void) {' +
-       'gl_FragColor = vec4(color, 1.0);' +
+    'gl_FragColor = vec4(color, 1.0);' +
     '}';
   var fragShader = gl.createShader(gl.FRAGMENT_SHADER);
   gl.shaderSource(fragShader, fragCode);
@@ -258,27 +196,20 @@ function glCompileCheck(shader) {
   console.log('Shader compiler log: ' + compilationLog);
 }
 
-function drawCallback() {
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.enable(gl.DEPTH_TEST);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.viewport(0,0,canvas.width,canvas.height);
 
-  var vertices = generateBoxLines(moveBox(0, 5, 0, 1));
-  draw(vertices, [1.0, 0.0, 0.0]);
 
-  var greenBoxX = 3.0 * (Math.abs(frame - frameCount/2.0) - frameCount/4.0);
-  var vertices = generateBoxLines(moveBox(greenBoxX, 10, -30, 2));
-  draw(vertices, [0.0, 1.0, 0.0]);
 
-  var blueBoxX = 3.0 * (Math.abs(frame - frameCount/2.0) - frameCount/4.0);
-  vertices = generateBoxLines(moveBox(30, 10, blueBoxX, 2));
-  draw(vertices, [0.0, 0.0, 1.0]);
-
-  window.requestAnimationFrame(drawCallback);
-
-  frame+=0.5;
-  if (frame == 60) frame = 0;
+function ready(fn) {
+  if (document.readyState != 'loading'){
+    fn();
+  } else if (document.addEventListener) {
+    document.addEventListener('DOMContentLoaded', fn);
+  } else {
+    document.attachEvent('onreadystatechange', function() {
+      if (document.readyState != 'loading')
+        fn();
+    });
+  }
 }
 
 ready(function () {
