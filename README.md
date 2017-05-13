@@ -1,3 +1,1 @@
-# webglplay
-
-playing with web gl
+[https://najati.github.io/webglplay/](https://najati.github.io/webglplay/)
