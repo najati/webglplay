@@ -1,5 +1,11 @@
 console.log("wtf is this");
 
+CSG.prototype.setColor = function(r, g, b) {
+  this.toPolygons().map(function(polygon) {
+    polygon.shared = [r, g, b];
+  });
+};
+
 var vertCode = `
   precision mediump float;
 
@@ -53,8 +59,10 @@ function toFlatArray(input) {
 // create a matrix for a camera transform
 function camera() {
   var swing = cameraSwing * Math.PI * 2;
+  var cameraArm = 10;
+  var cameraTall = 10;
 
-  return mat4.lookAt(mat4.create(), vec3.fromValues(Math.cos(swing) * 100, cameraHeight * 100, Math.sin(swing) * 100), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+  return mat4.lookAt(mat4.create(), vec3.fromValues(Math.cos(swing) * cameraArm, cameraHeight * cameraTall, Math.sin(swing) * cameraArm), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
 }
 
 // create a matrix for a perspective transform
@@ -102,6 +110,37 @@ function cubeVertices(size) {
   ];
 }
 
+function fancyShape() {
+  var verts =  [];
+
+  var a = CSG.cube();
+  var b = CSG.sphere({ radius: 1.35, stacks: 12 });
+  var c = CSG.cylinder({ radius: 0.7, start: [-1, 0, 0], end: [1, 0, 0] });
+  var d = CSG.cylinder({ radius: 0.7, start: [0, -1, 0], end: [0, 1, 0] });
+  var e = CSG.cylinder({ radius: 0.7, start: [0, 0, -1], end: [0, 0, 1] });
+  a.setColor(1, 0, 0);
+  b.setColor(1, 0, 0);
+  c.setColor(1, 0, 0);
+  d.setColor(1, 0, 0);
+  e.setColor(1, 0, 0);
+
+  var shape = a.intersect(b).subtract(c.union(d).union(e));
+  console.log(shape);
+
+  for (poly of shape.toPolygons()) {
+    for (vert of poly.vertices) {
+      verts.push(vec4.fromValues(vert.pos.x, vert.pos.y, vert.pos.z, 1));
+    }
+    verts.push(vec4.fromValues(poly.vertices[0].pos.x, poly.vertices[0].pos.y, poly.vertices[0].pos.z, 1));
+  }
+
+  return verts;
+}
+
+var vertices = cubeVertices(1);
+vertices = toFlatArray(vertices);
+vertices = new Float32Array(vertices);
+
 function draw(vertices, modelTransform, color) {
   var vertex_buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
@@ -138,17 +177,13 @@ function drawFrame() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(0,0, canvas.width, canvas.height);
 
-  var vertices = cubeVertices(10);
-  vertices = toFlatArray(vertices);
-  vertices = new Float32Array(vertices);
+  draw(vertices, moveBox(0, 0.5, 0, 1), [1.0, 0.0, 0.0]);
 
-  draw(vertices, moveBox(0, 5, 0, 1), [1.0, 0.0, 0.0]);
+  var greenBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
+  draw(vertices, moveBox(greenBoxX, 1, -3, 2), [0.0, 1.0, 0.0]);
 
-  var greenBoxX = 3.0 * (Math.abs(frame - frameCount) - frameCount/2.0);
-  draw(vertices, moveBox(greenBoxX, 10, -30, 2), [0.0, 1.0, 0.0]);
-
-  var blueBoxX = 3.0 * (Math.abs(frame - frameCount) - frameCount/2.0);
-  draw(vertices, moveBox(30, 10, blueBoxX, 2), [0.0, 0.0, 1.0]);
+  var blueBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
+  draw(vertices, moveBox(3, 1, blueBoxX, 2), [0.0, 0.0, 1.0]);
 
   window.requestAnimationFrame(drawFrame);
 
