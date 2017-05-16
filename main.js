@@ -31,6 +31,8 @@ var shaderProgram;
 var canvas;
 var gl;
 
+var cameraSwing = 0;
+var cameraHeight = 0;
 
 function toFlatArray(input) {
   var output = [];
@@ -50,7 +52,9 @@ function toFlatArray(input) {
 
 // create a matrix for a camera transform
 function camera() {
-  return mat4.lookAt(mat4.create(), vec3.fromValues(45, 25, 95), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
+  var swing = cameraSwing * Math.PI * 2;
+
+  return mat4.lookAt(mat4.create(), vec3.fromValues(Math.cos(swing) * 100, cameraHeight * 100, Math.sin(swing) * 100), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
 }
 
 // create a matrix for a perspective transform
@@ -68,6 +72,10 @@ function moveBox(x, y, z, scale) {
 }
 
 
+document.addEventListener("mousemove", function(event) {
+    cameraSwing = event.clientX/document.querySelector('body').clientWidth;
+    cameraHeight = 1 - event.clientY/document.querySelector('body').clientHeight;
+});
 
 
 // a list of points that describes a cube centered around 0,0,0 as a line strip
