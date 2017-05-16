@@ -24,9 +24,6 @@ var fragCode = `
   }
 `;
 
-var SCREEN_WIDTH = 640;
-var SCREEN_HEIGHT = 480;
-
 var frame = 0.0;
 var frameCount = 30;
 
@@ -58,7 +55,7 @@ function camera() {
 
 // create a matrix for a perspective transform
 function perspective() {
-  return mat4.perspective(mat4.create(), glMatrix.toRadian(70.0), 4.0 / 3.0, 0.1, 2000.0);
+  return mat4.perspective(mat4.create(), glMatrix.toRadian(70.0), canvas.width/canvas.height, 0.1, 2000.0);
 }
 
 // create a matrix for a model transform
@@ -125,10 +122,13 @@ function draw(vertices, modelTransform, color) {
 
 
 function drawFrame() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.enable(gl.DEPTH_TEST);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.viewport(0,0, canvas.width, canvas.height);
 
   var vertices = cubeVertices(10);
   vertices = toFlatArray(vertices);
