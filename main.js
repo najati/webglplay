@@ -61,14 +61,6 @@ function perspective() {
   return mat4.perspective(mat4.create(), glMatrix.toRadian(70.0), 4.0 / 3.0, 0.1, 2000.0);
 }
 
-// create a matrix for a viewport transform
-function viewport() {
-  var out = mat4.create();
-  mat4.fromTranslation(out, vec3.fromValues(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, 1));
-  mat4.scale(out, out, vec3.fromValues(SCREEN_WIDTH/2, -SCREEN_HEIGHT/2, 1));
-  return out;
-}
-
 // create a matrix for a model transform
 function moveBox(x, y, z, scale) {
   var transform = mat4.create();
