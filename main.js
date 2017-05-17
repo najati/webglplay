@@ -24,11 +24,11 @@ var vertCode = `
     gl_Position = projection * model * coordinates;
     vertexColor = color;
 
-    vec3 ambientLight = vec3(0.5, 0.5, 0.5);
+    vec3 ambientLight = vec3(0.3, 0.3, 0.3);
     vec3 directionalLightColor = vec3(1, 1, 1);
-    vec3 directionalVector = normalize(vec3(-1, 8, 1));
+    vec3 directionalVector = normalize(vec3(1, 1, 1));
 
-    vec4 transformedNormal = vertexNormal;
+    vec4 transformedNormal = normal * vertexNormal;
 
     float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
     lighting = ambientLight + (directionalLightColor * directional);
@@ -54,12 +54,16 @@ var canvas;
 var gl;
 
 var cameraSwing = 0;
-var cameraHeight = 0;
+var cameraHeight = 0.5;
+
+var rotateX = 0;
+var rotateY = 0;
+var cameraDistance = 0;
 
 // create a matrix for a camera transform
 function camera() {
   var swing = cameraSwing * Math.PI * 2;
-  var cameraArm = 10;
+  var cameraArm = 5 * cameraDistance;
   var cameraTall = 20;
 
   return mat4.lookAt(mat4.create(), vec3.fromValues(Math.cos(swing) * cameraArm, cameraHeight * cameraTall - cameraTall/2, Math.sin(swing) * cameraArm), vec3.fromValues(0, 0, 0), vec3.fromValues(0, 1, 0));
@@ -71,11 +75,13 @@ function perspective() {
 }
 
 // create a matrix for a model transform
-function moveBox(x, y, z, scale) {
+function moveBox(x, y, z, scale, rotX, rotY) {
   var transform = mat4.create();
   mat4.identity(transform)
   mat4.translate(transform, transform, vec3.fromValues(x, y, z));
   mat4.scale(transform, transform, vec3.fromValues(scale, scale, scale));
+  mat4.rotateY(transform, transform, rotX * 2 * Math.PI);
+  mat4.rotateZ(transform, transform, rotY * 2 * Math.PI);
   return transform;
 }
 
@@ -194,13 +200,13 @@ function drawFrame() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(0,0, canvas.width, canvas.height);
 
-  draw(vertices, moveBox(0, 0.5, 0, 1));
+  draw(vertices, moveBox(0, 0, 0, 1, rotateX, rotateY));
 
-  var greenBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
-  draw(vertices, moveBox(greenBoxX, 1, -4, 2));
+  // var greenBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
+  // draw(vertices, moveBox(greenBoxX, 1, -4, 2, 0, 0));
 
-  var blueBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
-  draw(vertices, moveBox(4, 1, blueBoxX, 2));
+  // var blueBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
+  // draw(vertices, moveBox(4, 1, blueBoxX, 2, 0, 0));
 
   window.requestAnimationFrame(drawFrame);
 
@@ -262,8 +268,15 @@ ready(function () {
   setupGLStuff();
 
   document.addEventListener("mousemove", function(event) {
-    cameraSwing = event.clientX/document.querySelector('body').clientWidth;
-    cameraHeight = 1 - event.clientY/document.querySelector('body').clientHeight;
+    rotateX = event.clientX/document.querySelector('body').clientWidth;
+    rotateY = event.clientY/document.querySelector('body').clientHeight;
+  });
+
+  window.addEventListener("mousewheel", function(event) {
+    cameraDistance -= event.wheelDeltaY/5000.0;
+    cameraDistance = Math.min(Math.max(cameraDistance, 0.0001), 1);
+
+    return false;
   });
 
   window.requestAnimationFrame(drawFrame);
