@@ -10,24 +10,26 @@ var vertCode = `
   precision mediump float;
 
   attribute vec4 coordinates;
-  attribute float aNumber;
+  attribute vec3 color;
   
-  uniform vec3 color;
   uniform mat4 model;
   uniform mat4 projection;
+  
+  varying vec3 vertexColor;
 
   void main(void) {
    gl_Position = projection * model * coordinates;
+   vertexColor = color;
   }
 `;
 
 var fragCode = `
   precision mediump float;
 
-  uniform vec3 color;
+  varying vec3 vertexColor;
 
   void main(void) {
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(vertexColor, 1.0);
   }
 `;
 
@@ -104,10 +106,10 @@ function fancyShape() {
   var d = CSG.cylinder({ radius: 0.7, start: [0, -1, 0], end: [0, 1, 0] });
   var e = CSG.cylinder({ radius: 0.7, start: [0, 0, -1], end: [0, 0, 1] });
   a.setColor(1, 0, 0);
-  b.setColor(1, 0, 0);
-  c.setColor(1, 0, 0);
-  d.setColor(1, 0, 0);
-  e.setColor(1, 0, 0);
+  b.setColor(0, 0, 1);
+  d.setColor(0, 1, 0);
+  c.setColor(0, 1, 0);
+  e.setColor(0, 1, 0);
 
   var shape = a.intersect(b).subtract(c.union(d).union(e));
   // var shape = a;
@@ -115,9 +117,9 @@ function fancyShape() {
 
   for (poly of shape.toPolygons()) {
     for (var vert = 1; vert < poly.vertices.length - 1; vert++) {
-      verts.push(poly.vertices[0].pos.x, poly.vertices[0].pos.y, poly.vertices[0].pos.z, 1, 1, 0, 0);
-      verts.push(poly.vertices[vert].pos.x, poly.vertices[vert].pos.y, poly.vertices[vert].pos.z, 1, 1, 0, 0);
-      verts.push(poly.vertices[vert+1].pos.x, poly.vertices[vert+1].pos.y, poly.vertices[vert+1].pos.z, 1, 1, 0, 0);
+      verts.push(poly.vertices[0].pos.x, poly.vertices[0].pos.y, poly.vertices[0].pos.z, 1, poly.shared[0], poly.shared[1], poly.shared[2]);
+      verts.push(poly.vertices[vert].pos.x, poly.vertices[vert].pos.y, poly.vertices[vert].pos.z, 1, poly.shared[0], poly.shared[1], poly.shared[2]);
+      verts.push(poly.vertices[vert+1].pos.x, poly.vertices[vert+1].pos.y, poly.vertices[vert+1].pos.z, 1, poly.shared[0], poly.shared[1], poly.shared[2]);
     }
   }
 
@@ -139,9 +141,9 @@ function draw(vertices, modelTransform, color) {
 
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
   var coord = gl.getAttribLocation(shaderProgram, "coordinates");
-  var aNumber = gl.getAttribLocation(shaderProgram, "aNumber");
+  var color = gl.getAttribLocation(shaderProgram, "color");
   gl.vertexAttribPointer(coord, 4, gl.FLOAT, false, 28, 0);
-  // gl.vertexAttribPointer(aNumber, 1, gl.FLOAT, false, 20, 16);
+  gl.vertexAttribPointer(color, 3, gl.FLOAT, false, 28, 16);
 
   gl.enableVertexAttribArray(coord);
 
@@ -152,8 +154,9 @@ function draw(vertices, modelTransform, color) {
   var projectionLoc = gl.getUniformLocation(shaderProgram, "projection");
   gl.uniformMatrix4fv(projectionLoc, gl.FALSE, projection);
 
-  var colorLoc = gl.getUniformLocation(shaderProgram, "color");
-  gl.uniform3f(colorLoc, color[0], color[1], color[2]);
+  // var colorLoc = gl.getUniformLocation(shaderProgram, "color");
+  // gl.uniform3f(colorLoc, color[0], color[1], color[2]);
+
   gl.drawArrays(gl.TRIANGLES, 0, vertices.length/7);
 
   // var colorLoc = gl.getUniformLocation(shaderProgram, "color");
@@ -205,7 +208,7 @@ function setupGLStuff() {
   gl.attachShader(shaderProgram, fragShader);
   gl.linkProgram(shaderProgram);
 
-  var vertexColorAttribute = gl.getAttribLocation(shaderProgram, 'aNumber');
+  var vertexColorAttribute = gl.getAttribLocation(shaderProgram, 'color');
   gl.enableVertexAttribArray(vertexColorAttribute);
 }
 
