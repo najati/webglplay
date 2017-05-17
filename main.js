@@ -10,7 +10,8 @@ var vertCode = `
   precision mediump float;
 
   attribute vec4 coordinates;
-
+  attribute float aNumber;
+  
   uniform vec3 color;
   uniform mat4 model;
   uniform mat4 projection;
@@ -22,7 +23,7 @@ var vertCode = `
 
 var fragCode = `
   precision mediump float;
-  
+
   uniform vec3 color;
 
   void main(void) {
@@ -39,22 +40,6 @@ var gl;
 
 var cameraSwing = 0;
 var cameraHeight = 0;
-
-function toFlatArray(input) {
-  var output = [];
-
-  for(point of input) {
-    output.push(point[0]);
-    output.push(point[1]);
-    output.push(point[2]);
-    output.push(point[3]);
-  }
-
-  return output;
-}
-
-
-
 
 // create a matrix for a camera transform
 function camera() {
@@ -90,28 +75,28 @@ document.addEventListener("mousemove", function(event) {
 function cubeVertices(size) {
   var s2 = size/2.0;
   return [
-    vec4.fromValues(-s2, -s2, -s2, 1),
-    vec4.fromValues(-s2, s2, -s2, 1),
-    vec4.fromValues(-s2, -s2, -s2, 1),
-    vec4.fromValues(-s2, -s2, s2, 1),
-    vec4.fromValues(-s2, s2, s2, 1),
-    vec4.fromValues(-s2, -s2, s2, 1),
-    vec4.fromValues(s2, -s2, s2, 1),
-    vec4.fromValues(s2, s2, s2, 1),
-    vec4.fromValues(s2, -s2, s2, 1),
-    vec4.fromValues(s2, -s2, -s2, 1),
-    vec4.fromValues(s2, s2, -s2, 1),
-    vec4.fromValues(-s2, s2, -s2, 1),
-    vec4.fromValues(-s2, s2, s2, 1),
-    vec4.fromValues(s2, s2, s2, 1),
-    vec4.fromValues(s2, s2, -s2, 1),
-    vec4.fromValues(s2, -s2, -s2, 1),
-    vec4.fromValues(-s2, -s2, -s2, 1)
+    -s2, -s2, -s2, 1,
+    -s2, s2, -s2, 1,
+    -s2, -s2, -s2, 1,
+    -s2, -s2, s2, 1,
+    -s2, s2, s2, 1,
+    -s2, -s2, s2, 1,
+    s2, -s2, s2, 1,
+    s2, s2, s2, 1,
+    s2, -s2, s2, 1,
+    s2, -s2, -s2, 1,
+    s2, s2, -s2, 1,
+    -s2, s2, -s2, 1,
+    -s2, s2, s2, 1,
+    s2, s2, s2, 1,
+    s2, s2, -s2, 1,
+    s2, -s2, -s2, 1,
+    -s2, -s2, -s2, 1
   ];
 }
 
 function fancyShape() {
-  var verts =  [];
+  var verts = [];
 
   var a = CSG.cube();
   var b = CSG.sphere({ radius: 1.35, stacks: 12 });
@@ -125,20 +110,23 @@ function fancyShape() {
   e.setColor(1, 0, 0);
 
   var shape = a.intersect(b).subtract(c.union(d).union(e));
-  console.log(shape);
+  // var shape = a;
+  // console.log(shape);
 
   for (poly of shape.toPolygons()) {
-    for (vert of poly.vertices) {
-      verts.push(vec4.fromValues(vert.pos.x, vert.pos.y, vert.pos.z, 1));
+    for (var vert = 1; vert < poly.vertices.length - 1; vert++) {
+      verts.push(poly.vertices[0].pos.x, poly.vertices[0].pos.y, poly.vertices[0].pos.z, 1, 1, 0, 0);
+      verts.push(poly.vertices[vert].pos.x, poly.vertices[vert].pos.y, poly.vertices[vert].pos.z, 1, 1, 0, 0);
+      verts.push(poly.vertices[vert+1].pos.x, poly.vertices[vert+1].pos.y, poly.vertices[vert+1].pos.z, 1, 1, 0, 0);
     }
-    verts.push(vec4.fromValues(poly.vertices[0].pos.x, poly.vertices[0].pos.y, poly.vertices[0].pos.z, 1));
   }
 
   return verts;
 }
 
-var vertices = cubeVertices(1);
-vertices = toFlatArray(vertices);
+var vertices = fancyShape();
+// var vertices = cubeVertices(1);
+// vertices = toFlatArray(vertices);
 vertices = new Float32Array(vertices);
 
 function draw(vertices, modelTransform, color) {
@@ -151,7 +139,10 @@ function draw(vertices, modelTransform, color) {
 
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
   var coord = gl.getAttribLocation(shaderProgram, "coordinates");
-  gl.vertexAttribPointer(coord, 4, gl.FLOAT, false, 0, 0);
+  var aNumber = gl.getAttribLocation(shaderProgram, "aNumber");
+  gl.vertexAttribPointer(coord, 4, gl.FLOAT, false, 28, 0);
+  // gl.vertexAttribPointer(aNumber, 1, gl.FLOAT, false, 20, 16);
+
   gl.enableVertexAttribArray(coord);
 
   var modelLoc = gl.getUniformLocation(shaderProgram, "model");
@@ -163,8 +154,11 @@ function draw(vertices, modelTransform, color) {
 
   var colorLoc = gl.getUniformLocation(shaderProgram, "color");
   gl.uniform3f(colorLoc, color[0], color[1], color[2]);
+  gl.drawArrays(gl.TRIANGLES, 0, vertices.length/7);
 
-  gl.drawArrays(gl.LINE_STRIP, 0, vertices.length/4);
+  // var colorLoc = gl.getUniformLocation(shaderProgram, "color");
+  // gl.uniform3f(colorLoc, 0, 0, 0);
+  // gl.drawArrays(gl.LINE_LOOP, 0, vertices.length/4);
 }
 
 
@@ -180,10 +174,10 @@ function drawFrame() {
   draw(vertices, moveBox(0, 0.5, 0, 1), [1.0, 0.0, 0.0]);
 
   var greenBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
-  draw(vertices, moveBox(greenBoxX, 1, -3, 2), [0.0, 1.0, 0.0]);
+  draw(vertices, moveBox(greenBoxX, 1, -4, 2), [0.0, 1.0, 0.0]);
 
   var blueBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
-  draw(vertices, moveBox(3, 1, blueBoxX, 2), [0.0, 0.0, 1.0]);
+  draw(vertices, moveBox(4, 1, blueBoxX, 2), [0.0, 0.0, 1.0]);
 
   window.requestAnimationFrame(drawFrame);
 
@@ -201,7 +195,7 @@ function setupGLStuff() {
   var vertShader = gl.createShader(gl.VERTEX_SHADER);
   gl.shaderSource(vertShader, vertCode);
   gl.compileShader(vertShader);
-  
+
   var fragShader = gl.createShader(gl.FRAGMENT_SHADER);
   gl.shaderSource(fragShader, fragCode);
   gl.compileShader(fragShader);
@@ -210,6 +204,9 @@ function setupGLStuff() {
   gl.attachShader(shaderProgram, vertShader);
   gl.attachShader(shaderProgram, fragShader);
   gl.linkProgram(shaderProgram);
+
+  var vertexColorAttribute = gl.getAttribLocation(shaderProgram, 'aNumber');
+  gl.enableVertexAttribArray(vertexColorAttribute);
 }
 
 function glCompileCheck(gl, shader) {
