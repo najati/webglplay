@@ -49,20 +49,22 @@ var fragCode = `
 var frame = 0.0;
 var frameCount = 30;
 
-var shaderProgram;
-var canvas;
-var gl;
-
-var cameraSwing = 0;
+var cameraSwing = 90;
 var cameraHeight = 0.5;
 
 var rotateX = 0;
 var rotateY = 0;
-var cameraDistance = 0;
+var cameraDistance = 1;
 
 // create a matrix for a camera transform
-function camera() {
+function camera(left) {
+  var angle =  2.5;
   var swing = cameraSwing * Math.PI * 2;
+  if (!left) {
+    swing -= Math.PI/180*angle;
+  } else {
+    swing += Math.PI/180*angle;
+  }
   var cameraArm = 5 * cameraDistance;
   var cameraTall = 20;
 
@@ -70,7 +72,7 @@ function camera() {
 }
 
 // create a matrix for a perspective transform
-function perspective() {
+function perspective(canvas) {
   return mat4.perspective(mat4.create(), glMatrix.toRadian(70.0), canvas.width/canvas.height, 0.1, 2000.0);
 }
 
@@ -153,7 +155,7 @@ var vertices = fancyShape();
 // var vertices = cubeVertices(1);
 vertices = new Float32Array(vertices);
 
-function draw(vertices, modelTransform) {
+function draw(left, gl, canvas, shaderProgram, vertices, modelTransform) {
   var vertex_buffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
   gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
@@ -179,7 +181,7 @@ function draw(vertices, modelTransform) {
   var normal = gl.getUniformLocation(shaderProgram, "normal");
   gl.uniformMatrix4fv(normal, gl.FALSE, modelTransform);
 
-  var projection = mat4.multiply(mat4.create(), perspective(), camera());
+  var projection = mat4.multiply(mat4.create(), perspective(canvas), camera(left));
   var projectionLoc = gl.getUniformLocation(shaderProgram, "projection");
   gl.uniformMatrix4fv(projectionLoc, gl.FALSE, projection);
 
@@ -191,7 +193,7 @@ function draw(vertices, modelTransform) {
 }
 
 
-function drawFrame() {
+function drawFrame(left, gl, canvas, shaderProgram) {
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
@@ -200,7 +202,7 @@ function drawFrame() {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.viewport(0,0, canvas.width, canvas.height);
 
-  draw(vertices, moveBox(0, 0, 0, 1, rotateX, rotateY));
+  draw(left, gl, canvas, shaderProgram, vertices, moveBox(0, 0, 0, 1, rotateX, rotateY));
 
   // var greenBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
   // draw(vertices, moveBox(greenBoxX, 1, -4, 2, 0, 0));
@@ -208,18 +210,21 @@ function drawFrame() {
   // var blueBoxX = 0.3 * (Math.abs(frame - frameCount) - frameCount/2.0);
   // draw(vertices, moveBox(4, 1, blueBoxX, 2, 0, 0));
 
-  window.requestAnimationFrame(drawFrame);
+  window.requestAnimationFrame(function(timeStamp) {
+    drawFrame(left, gl, canvas, shaderProgram);
+  });
 
   frame+=0.5;
   if (frame >= frameCount*2) frame = 0;
 }
 
 
+var blah;
 
-
-function setupGLStuff() {
-  canvas = document.getElementById('my_Canvas');
-  gl = canvas.getContext('experimental-webgl');
+function setupGLStuff(canvasName) {
+  var canvas = document.getElementById(canvasName);
+  var gl = canvas.getContext('experimental-webgl');
+  blah = gl;
 
   var vertShader = gl.createShader(gl.VERTEX_SHADER);
   gl.shaderSource(vertShader, vertCode);
@@ -229,7 +234,7 @@ function setupGLStuff() {
   gl.shaderSource(fragShader, fragCode);
   gl.compileShader(fragShader);
 
-  shaderProgram = gl.createProgram();
+  var shaderProgram = gl.createProgram();
   gl.attachShader(shaderProgram, vertShader);
   gl.attachShader(shaderProgram, fragShader);
   gl.linkProgram(shaderProgram);
@@ -241,6 +246,8 @@ function setupGLStuff() {
   gl.enableVertexAttribArray(attribute);
   attribute = gl.getAttribLocation(shaderProgram, 'color');
   gl.enableVertexAttribArray(attribute);
+
+  return [gl, canvas, shaderProgram];
 }
 
 function glCompileCheck(gl, shader) {
@@ -265,7 +272,8 @@ function ready(fn) {
 }
 
 ready(function () {
-  setupGLStuff();
+  var left = setupGLStuff('leftCanvas');
+  var right = setupGLStuff('rightCanvas');
 
   document.addEventListener("mousemove", function(event) {
     rotateX = event.clientX/document.querySelector('body').clientWidth;
@@ -279,5 +287,33 @@ ready(function () {
     return false;
   });
 
-  window.requestAnimationFrame(drawFrame);
+  window.requestAnimationFrame(function(timeStamp) {
+    drawFrame(true, left[0], left[1], left[2]);
+    drawFrame(false, right[0], right[1], right[2]);
+  });
+
+  function tilt(x, y) {
+    if (x) {
+      rotateX = x;
+      console.log('x', x);
+    }
+    if (y) {
+      rotateY = y;
+      console.log('y', y);
+    }
+  }
+
+  if (window.DeviceOrientationEvent) {
+    window.addEventListener("deviceorientation", function () {
+      tilt(event.alpha/100, -event.gamma/100);
+    }, true);
+  } else if (window.DeviceMotionEvent) {
+    window.addEventListener('devicemotion', function () {
+      tilt(event.acceleration.x * 2, event.acceleration.y * 2);
+    }, true);
+  } else {
+    window.addEventListener("MozOrientation", function () {
+      tilt(orientation.x/10, orientation.y/10);
+    }, true);
+  }
 });
