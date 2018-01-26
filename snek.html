@@ -4,6 +4,7 @@
 <canvas width="900" height="600"></canvas>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.4.0/gl-matrix-min.js"></script>
 <script>
+var glStuff;
 var flr = Math.floor, abs = Math.abs, rnd = (x) => x * Math.random();
 var w = 15, h = 10, size = w * h, edge = 60;
 var brd = new Array(size), snk = {}, then = performance.now();
@@ -31,6 +32,9 @@ tick = (t) => {
     } else reset();
   }
 
+  if (glStuff == null || glStuff[0] == null) {
+    glStuff = setupGLStuff();
+  }
   drawFrame(glStuff[0], glStuff[1], glStuff[2]);
 
   window.requestAnimationFrame(tick);
@@ -234,7 +238,5 @@ function setupGLStuff(canvasName) {
 
   return [gl, perspective(canvas.width, canvas.height), shaderProgram];
 }
-
-var glStuff = setupGLStuff();
 
 </script>
